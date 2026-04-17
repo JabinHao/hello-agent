@@ -5,9 +5,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class HelloAgentApplication {
-
-	public static void main(String[] args) {
-		SpringApplication.run(HelloAgentApplication.class, args);
-	}
-
+    
+    public static void main(String[] args) {
+        SpringApplication.run(HelloAgentApplication.class, args);
+    }
+    
 }
