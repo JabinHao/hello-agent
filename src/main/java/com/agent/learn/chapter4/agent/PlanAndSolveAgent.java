@@ -17,15 +17,15 @@ public class PlanAndSolveAgent {
         this.executor = executor;
     }
 
-    public String run(String question) {
+    public AgentExecutionResult run(String question) {
         log.info("\n--- Question ---\n{}", question);
         List<String> plan = planner.plan(question);
         if (plan.isEmpty()) {
             log.warn("--- Aborted --- could not produce a valid plan.");
-            return null;
+            return AgentExecutionResult.failure("PLAN_GENERATION_FAILED", "could not produce a valid plan");
         }
         String finalAnswer = executor.execute(question, plan);
         log.info("\n--- Done --- final answer: {}", finalAnswer);
-        return finalAnswer;
+        return AgentExecutionResult.success(finalAnswer);
     }
 }

@@ -63,7 +63,7 @@ public class ReflectionAgent {
         this.maxIterations = 3;
     }
 
-    public String run(String task) {
+    public AgentExecutionResult run(String task) {
         log.info("\n--- Task ---\n{}", task);
         Memory memory = new Memory();
 
@@ -88,7 +88,7 @@ public class ReflectionAgent {
             }
 
             log.info("-> Refining...");
-            String refined = ask(REFINE_PROMPT
+            String refined = ask( REFINE_PROMPT
                     .replace("{task}", task)
                     .replace("{last_code_attempt}", lastCode)
                     .replace("{feedback}", feedback));
@@ -97,11 +97,10 @@ public class ReflectionAgent {
 
         String finalCode = memory.getLastExecution();
         log.info("\n--- Done ---\nFinal code:\n{}", finalCode);
-        return finalCode;
+        return AgentExecutionResult.success(finalCode);
     }
 
     private String ask(String prompt) {
-        String response = llm.think(List.of(ChatMessage.user(prompt)));
-        return response == null ? "" : response;
+        return llm.think(List.of(ChatMessage.user(prompt)));
     }
 }

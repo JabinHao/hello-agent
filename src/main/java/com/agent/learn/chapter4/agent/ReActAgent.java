@@ -2,10 +2,7 @@ package com.agent.learn.chapter4.agent;
 
 import com.agent.learn.chapter4.llm.ChatMessage;
 import com.agent.learn.chapter4.llm.HelloAgentsLlm;
-import com.agent.learn.chapter4.tool.SearchTool;
-import com.agent.learn.chapter4.tool.Tool;
-import com.agent.learn.chapter4.tool.ToolExecutor;
-import jakarta.annotation.PostConstruct;
+import com.agent.learn.chapter4.tool.ToolRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -45,51 +42,36 @@ public class ReActAgent {
             Pattern.compile("(\\w+)\\[(.*)]", Pattern.DOTALL);
 
     private final HelloAgentsLlm llm;
-    private final SearchTool searchTool;
-    private final ToolExecutor toolExecutor = new ToolExecutor();
+    private final ToolRegistry toolRegistry;
     private final int maxSteps = 5;
 
-    public ReActAgent(HelloAgentsLlm llm, SearchTool searchTool) {
+    public ReActAgent(HelloAgentsLlm llm, ToolRegistry toolRegistry) {
         this.llm = llm;
-        this.searchTool = searchTool;
+        this.toolRegistry = toolRegistry;
     }
 
-    @PostConstruct
-    void registerDefaultTools() {
-        toolExecutor.register(
-                "Search",
-                "A web search engine. Use it when you need facts, current events, or info not in your knowledge base.",
-                searchTool::search);
-    }
-
-    public String run(String question) {
+    public AgentExecutionResult run(String question) {
         List<String> history = new ArrayList<>();
         for (int step = 1; step <= maxSteps; step++) {
             log.info("\n--- Step {} ---", step);
 
             String prompt = PROMPT_TEMPLATE
-                    .replace("{tools}", toolExecutor.getAvailableTools())
+                    .replace("{tools}", toolRegistry.describeAvailableTools())
                     .replace("{question}", question)
                     .replace("{history}", String.join("\n", history));
 
             String response = llm.think(List.of(ChatMessage.user(prompt)));
-            if (response == null) {
-                log.error("LLM returned no response; aborting.");
-                return null;
-            }
-
             String thought = extract(THOUGHT_PATTERN, response);
             String action = extract(ACTION_PATTERN, response);
             if (thought != null) log.info("🤔 Thought: {}", thought);
             if (action == null) {
-                log.warn("Could not parse Action; aborting.");
-                return null;
+                return AgentExecutionResult.failure("ACTION_PARSE_FAILED", "could not parse action from model response");
             }
 
             if (action.startsWith("Finish")) {
                 String finalAnswer = parseActionInput(action);
                 log.info("🎉 Final answer: {}", finalAnswer);
-                return finalAnswer;
+                return AgentExecutionResult.success(finalAnswer);
             }
 
             Matcher m = ACTION_CALL_PATTERN.matcher(action);
@@ -101,17 +83,14 @@ public class ReActAgent {
             String toolInput = m.group(2);
             log.info("🎬 Action: {}[{}]", toolName, toolInput);
 
-            Tool tool = toolExecutor.get(toolName);
-            String observation = (tool == null)
-                    ? "Error: no tool named '" + toolName + "'."
-                    : tool.function().apply(toolInput);
+            String observation = toolRegistry.execute(toolName, toolInput);
             log.info("👀 Observation: {}", observation);
 
             history.add("Action: " + action);
             history.add("Observation: " + observation);
         }
         log.warn("Reached max steps without finishing.");
-        return null;
+        return AgentExecutionResult.failure("MAX_STEPS_EXCEEDED", "agent reached max steps without finishing");
     }
 
     private String extract(Pattern pattern, String text) {

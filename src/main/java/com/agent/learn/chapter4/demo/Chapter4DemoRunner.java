@@ -30,10 +30,10 @@ public class Chapter4DemoRunner implements CommandLineRunner {
         }
         String which = args[0];
         switch (which) {
-            case "react" -> reActAgent.run("What is Huawei's latest phone, and what are its main selling points?");
-            case "reflection" -> reflectionAgent.run("Write a Python function that finds all prime numbers between 1 and n.");
-            case "plan-and-solve" -> planAndSolveAgent.run(
-                    "A fruit shop sold 15 apples on Monday, twice as many on Tuesday, and 5 fewer on Wednesday than on Tuesday. How many apples were sold over the three days?");
+            case "react" -> log.info("{}", reActAgent.run("What is Huawei's latest phone, and what are its main selling points?"));
+            case "reflection" -> log.info("{}", reflectionAgent.run("Write a Python function that finds all prime numbers between 1 and n."));
+            case "plan-and-solve" -> log.info("{}", planAndSolveAgent.run(
+                    "A fruit shop sold 15 apples on Monday, twice as many on Tuesday, and 5 fewer on Wednesday than on Tuesday. How many apples were sold over the three days?"));
             default -> log.warn("Unknown demo '{}'. Use one of: react | reflection | plan-and-solve", which);
         }
     }

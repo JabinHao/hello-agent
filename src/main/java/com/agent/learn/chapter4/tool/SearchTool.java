@@ -1,8 +1,10 @@
 package com.agent.learn.chapter4.tool;
 
 import com.agent.learn.chapter4.config.SerpApiProperties;
+import com.agent.learn.chapter4.exception.ToolExecutionException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Bean;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -28,10 +30,19 @@ public class SearchTool {
         this.restClient = restClient;
     }
 
+    @Bean
+    public Tool searchAgentTool() {
+        return new Tool(
+                "Search",
+                "A web search engine. Use it when you need facts, current events, or info not in your knowledge base.",
+                this::search
+        );
+    }
+
     public String search(String query) {
         log.info("🔍 SerpApi search: {}", query);
         if (props.getApiKey() == null || props.getApiKey().isBlank()) {
-            return "Error: SERPAPI_API_KEY is not configured.";
+            throw new ToolExecutionException("TOOL_CONFIGURATION_MISSING", "SERPAPI_API_KEY is not configured");
         }
         try {
             Map<String, Object> results = restClient.get()
@@ -51,7 +62,7 @@ public class SearchTool {
             return parseResults(results, query);
         } catch (RestClientException e) {
             log.error("Search failed: {}", e.getMessage(), e);
-            return "Search error: " + e.getMessage();
+            throw new ToolExecutionException("TOOL_EXECUTION_FAILED", "search failed: " + e.getMessage());
         }
     }
 

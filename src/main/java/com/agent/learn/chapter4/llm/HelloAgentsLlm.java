@@ -1,6 +1,7 @@
 package com.agent.learn.chapter4.llm;
 
 import com.agent.learn.chapter4.config.LlmProperties;
+import com.agent.learn.chapter4.exception.LlmInvocationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
@@ -20,12 +21,6 @@ public class HelloAgentsLlm {
     public HelloAgentsLlm(LlmProperties props, @Qualifier("llmRestClient") RestClient restClient) {
         this.props = props;
         this.restClient = restClient;
-        if (props.getModelId() == null || props.getModelId().isBlank()
-                || props.getApiKey() == null || props.getApiKey().isBlank()
-                || props.getBaseUrl() == null || props.getBaseUrl().isBlank()) {
-            throw new IllegalStateException(
-                    "LLM_MODEL_ID, LLM_API_KEY and LLM_BASE_URL must be provided via env or .env file.");
-        }
     }
 
     public String think(List<ChatMessage> messages) {
@@ -33,6 +28,7 @@ public class HelloAgentsLlm {
     }
 
     public String think(List<ChatMessage> messages, double temperature) {
+        validateConfiguration();
         log.info("🧠 Calling model {}", props.getModelId());
         ChatCompletionRequest body = new ChatCompletionRequest(props.getModelId(), messages, temperature);
         try {
@@ -44,15 +40,27 @@ public class HelloAgentsLlm {
                     .retrieve()
                     .body(ChatCompletionResponse.class);
             if (resp == null || resp.getChoices() == null || resp.getChoices().isEmpty()) {
-                log.warn("LLM returned an empty response");
-                return null;
+                throw new LlmInvocationException("LLM_EMPTY_RESPONSE", "llm returned an empty response");
             }
             String content = resp.getChoices().get(0).getMessage().getContent();
             log.info("✅ LLM response received ({} chars)", content == null ? 0 : content.length());
+            if (content == null || content.isBlank()) {
+                throw new LlmInvocationException("LLM_EMPTY_RESPONSE", "llm response content was blank");
+            }
             return content;
         } catch (RestClientException e) {
             log.error("❌ LLM API call failed: {}", e.getMessage(), e);
-            return null;
+            throw new LlmInvocationException("LLM_CALL_FAILED", "llm api call failed: " + e.getMessage());
+        }
+    }
+
+    private void validateConfiguration() {
+        if (props.getModelId() == null || props.getModelId().isBlank()
+                || props.getApiKey() == null || props.getApiKey().isBlank()
+                || props.getBaseUrl() == null || props.getBaseUrl().isBlank()) {
+            throw new LlmInvocationException(
+                    "LLM_CONFIGURATION_MISSING",
+                    "llm.model-id, llm.api-key and llm.base-url must be configured");
         }
     }
 }
